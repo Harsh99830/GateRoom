@@ -65,7 +65,7 @@ const Waiting = () => {
         </div>
         
         <h2 className="text-xl font-medium tracking-tight mb-2">
-          Searching for a {profile.branch === 'Any' ? 'peer' : `${profile.branch} peer`}...
+          Searching for a study partner...
         </h2>
         <p className="text-gray-500 text-sm mb-8 font-light">Please wait while we connect you to the network.</p>
 

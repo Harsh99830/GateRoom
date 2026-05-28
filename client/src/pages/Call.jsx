@@ -29,6 +29,12 @@ const Call = () => {
     navigate('/');
   };
 
+  const handleNextCall = () => {
+    // Disconnect the socket to forcefully alert the partner and clean up server room state
+    socket.disconnect();
+    navigate('/waiting');
+  };
+
   if (!matchData) return null;
 
   return (
@@ -51,6 +57,7 @@ const Call = () => {
           partnerName={matchData.partnerName} 
           isInitiator={matchData.initiator}
           onEndCall={handleEndCall}
+          onNextCall={handleNextCall}
         />
       </div>
       

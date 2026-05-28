@@ -23,20 +23,16 @@ const io = new Server(server, {
 });
 
 // Socket.io logic for WebRTC signaling
-const queues = {
-  'CSE': [], 'ECE': [], 'ME': [], 'CE': [], 'EE': [], 'IN': [], 'any': []
-};
+let waitingUsers = [];
 const activeMatches = new Map();
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   socket.on('join-queue', (profile) => {
-    const branch = queues[profile.branch] ? profile.branch : 'any';
-    
-    if (queues[branch].length > 0) {
+    if (waitingUsers.length > 0) {
       // Match found
-      const partner = queues[branch].shift();
+      const partner = waitingUsers.shift();
       const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
       activeMatches.set(socket.id, { roomId, partnerSocketId: partner.socket.id });
@@ -56,15 +52,13 @@ io.on('connection', (socket) => {
         initiator: false
       });
     } else {
-      // Add to queue
-      queues[branch].push({ socket, profile });
+      // Add to global queue
+      waitingUsers.push({ socket, profile });
     }
   });
 
   socket.on('leave-queue', () => {
-    Object.keys(queues).forEach(branch => {
-      queues[branch] = queues[branch].filter(user => user.socket.id !== socket.id);
-    });
+    waitingUsers = waitingUsers.filter(user => user.socket.id !== socket.id);
   });
 
   socket.on('join-room', (roomId, userId) => {
@@ -98,10 +92,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     
-    // Remove from queues
-    Object.keys(queues).forEach(branch => {
-      queues[branch] = queues[branch].filter(user => user.socket.id !== socket.id);
-    });
+    // Remove from global queue
+    waitingUsers = waitingUsers.filter(user => user.socket.id !== socket.id);
     
     // Notify partner if in an active match
     if (activeMatches.has(socket.id)) {

@@ -7,6 +7,7 @@ import Call from './pages/Call';
 import Auth from './pages/Auth';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import About from './pages/About';
 import { ThemeProvider } from './context/ThemeContext';
 
 const ProtectedRoute = ({ children }) => {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/about" element={<About />} />
           <Route path="/setup" element={<ProtectedRoute><Setup /></ProtectedRoute>} />
           <Route path="/waiting" element={<ProtectedRoute><Waiting /></ProtectedRoute>} />
           <Route path="/call/:roomId" element={<ProtectedRoute><Call /></ProtectedRoute>} />

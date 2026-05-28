@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, SkipForward } from 'lucide-react';
 
-const VideoCall = ({ socket, roomId, partnerName, isInitiator, onEndCall }) => {
+const VideoCall = ({ socket, roomId, partnerName, isInitiator, onEndCall, onNextCall }) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
@@ -28,6 +28,29 @@ const VideoCall = ({ socket, roomId, partnerName, isInitiator, onEndCall }) => {
         setIsVideoOff(!videoTrack.enabled);
       }
     }
+  };
+
+  const stopMediaTracks = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      localStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+  };
+
+  const handleManualEndCall = () => {
+    stopMediaTracks();
+    onEndCall('Call ended');
+  };
+
+  const handleManualNextCall = () => {
+    stopMediaTracks();
+    if (onNextCall) onNextCall();
   };
 
   useEffect(() => {
@@ -88,6 +111,7 @@ const VideoCall = ({ socket, roomId, partnerName, isInitiator, onEndCall }) => {
         });
 
         socket.on('partner-disconnected', () => {
+          stopMediaTracks();
           onEndCall('Partner disconnected');
         });
 
@@ -120,12 +144,7 @@ const VideoCall = ({ socket, roomId, partnerName, isInitiator, onEndCall }) => {
       socket.off('user-connected');
       socket.off('partner-disconnected');
       
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
-      }
+      stopMediaTracks();
     };
   }, [roomId, socket, isInitiator, partnerName, onEndCall]);
 
@@ -168,10 +187,19 @@ const VideoCall = ({ socket, roomId, partnerName, isInitiator, onEndCall }) => {
          </button>
          
          <button 
-           onClick={() => onEndCall('Call ended')} 
+           onClick={handleManualEndCall} 
            className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all"
+           title="End Call"
          >
            <PhoneOff className="w-6 h-6" />
+         </button>
+
+         <button 
+           onClick={handleManualNextCall} 
+           className="bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all"
+           title="Skip to next peer"
+         >
+           <SkipForward className="w-6 h-6 ml-0.5" />
          </button>
          
          <button 
