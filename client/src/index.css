@@ -1,11 +1,61 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @layer base {
   body {
-    background-color: #111827;
-    color: white;
+    background-color: #fafafa;
+    color: #000000;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+  }
+  
+  .dark body {
+    background-color: #000000;
+    color: #ffffff;
+  }
+
+  body, div, span, p, h1, h2, h3, h4, h5, h6, nav, main, section, header, footer, button, a, input, select {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+  }
+
+  /* Global Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #e5e7eb; /* gray-200 */
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db; /* gray-300 */
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #262626; /* neutral-800 */
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #404040; /* neutral-700 */
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #e5e7eb transparent;
+  }
+
+  .dark * {
+    scrollbar-color: #262626 transparent;
   }
 }

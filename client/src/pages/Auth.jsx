@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { Cpu, Loader2 } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 
@@ -56,20 +56,20 @@ const Auth = () => {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white flex p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-black text-black dark:text-white flex p-4 font-sans relative overflow-hidden transition-colors duration-500">
       
       {/* Left Half - Image (Hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-[50%] relative rounded-[2rem] overflow-hidden bg-black m-1">
+      <div className="hidden lg:flex lg:w-[50%] relative rounded-[2rem] overflow-hidden bg-gray-100 dark:bg-black m-1 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <img 
           src="/auth-bg.png" 
           alt="Abstract Tech" 
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover opacity-90 dark:opacity-100"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent dark:from-black dark:via-black/20"></div>
         
         {/* Floating Text (No Card) */}
         <div className="absolute bottom-16 left-16 right-16">
-          <p className="text-white text-xl font-light leading-relaxed mb-6 drop-shadow-lg text-center lg:text-left">
+          <p className="text-black dark:text-white text-xl font-medium dark:font-light leading-relaxed mb-6 drop-shadow-md dark:drop-shadow-lg text-center lg:text-left">
             Connecting with the right peers completely changed the trajectory of my GATE preparation. Isolation is the enemy of engineering.
           </p>
         </div>
@@ -80,30 +80,30 @@ const Auth = () => {
         <div className="w-full max-w-[440px]">
           <div className="mb-14 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="flex items-center gap-3 mb-10 text-2xl font-medium tracking-tight">
-              <Cpu className="w-7 h-7 text-white" />
+              <Cpu className="w-7 h-7 text-black dark:text-white" />
               <div className="flex items-center">
-                <span className="font-extrabold tracking-tighter text-white">Gate</span>
-                <span className="font-light tracking-widest text-gray-400 italic">Room</span>
+                <span className="font-extrabold tracking-tighter text-black dark:text-white">Gate</span>
+                <span className="font-light tracking-widest text-gray-500 dark:text-gray-400 italic">Room</span>
               </div>
             </div>
             
-            <h2 className="text-4xl font-medium tracking-tight mb-4">
+            <h2 className="text-4xl font-medium tracking-tight mb-4 text-black dark:text-white">
               Welcome back
             </h2>
-            <p className="text-gray-400 text-base font-light">
+            <p className="text-gray-500 dark:text-gray-400 text-base font-light">
               Log in to continue your preparation journey with peers across India.
             </p>
           </div>
 
-          {error && <div className="bg-red-950/30 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm text-center">{error}</div>}
+          {error && <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl mb-6 text-sm text-center shadow-sm dark:shadow-none">{error}</div>}
 
           <button
             onClick={() => handleGoogleLogin()}
             disabled={loading}
-            className="group w-full flex items-center justify-center space-x-4 bg-white text-black py-4 rounded-xl font-medium text-base hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            className="group w-full flex items-center justify-center space-x-4 bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl font-medium text-base hover:bg-gray-800 dark:hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shadow-xl shadow-black/10 dark:shadow-none"
           >
             {loading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin text-white dark:text-black" />
             ) : (
               <>
                 <svg className="w-6 h-6 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
@@ -119,7 +119,7 @@ const Auth = () => {
           
           <div className="mt-10 text-center lg:text-left">
             <p className="text-[13px] text-gray-500 font-light">
-              By continuing, you agree to our <a href="#" className="text-gray-300 hover:text-white underline decoration-white/20 underline-offset-4">Terms of Service</a> and <a href="#" className="text-gray-300 hover:text-white underline decoration-white/20 underline-offset-4">Privacy Policy</a>.
+              By continuing, you agree to our <Link to="/terms" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white underline decoration-black/20 dark:decoration-white/20 underline-offset-4">Terms of Service</Link> and <Link to="/privacy" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white underline decoration-black/20 dark:decoration-white/20 underline-offset-4">Privacy Policy</Link>.
             </p>
           </div>
         </div>
