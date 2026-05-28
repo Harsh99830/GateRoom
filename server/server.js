@@ -10,14 +10,14 @@ const app = express();
 const server = http.createServer(app);
 
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: process.env.CLIENT_URL || '*',
   methods: ['GET', 'POST'],
 }));
 app.use(express.json());
 
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || '*',
     methods: ['GET', 'POST'],
   },
 });
