@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
-import { Cpu, Loader2, Sun, Moon } from 'lucide-react';
+import { Loader2, Sun, Moon } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useTheme } from '../context/ThemeContext';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -10,44 +12,39 @@ const Auth = () => {
   const [error, setError] = useState('');
   const { isDark, toggleTheme } = useTheme();
 
-  // If already logged in, redirect to setup
-  if (localStorage.getItem('token')) {
-    return <Navigate to="/onboarding" />;
-  }
-
   const handleGoogleLogin = useGoogleLogin({
+    flow: 'auth-code',
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/google`, {
+        const res = await fetch(`${API_URL}/api/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokenResponse.access_token }),
+          body: JSON.stringify({ code: tokenResponse.code }),
         });
-        
+
         const data = await res.json();
-        
+
         if (res.ok) {
           localStorage.setItem('token', data.token);
+          localStorage.setItem('refreshToken', data.refreshToken || '');
+          localStorage.setItem('tokenExpiresAt', String(data.expiresAt || ''));
           localStorage.setItem('user', JSON.stringify(data.user));
-          
-          // Pre-fill gateProfile for /setup
-          const existingProfile = localStorage.getItem('gateProfile');
-          if (!existingProfile) {
-            localStorage.setItem('gateProfile', JSON.stringify({ 
-              name: data.user.name, 
-              branch: data.user.branch || 'Any', 
-              year: '2025' 
-            }));
+
+          if (data.gateProfile) {
+            localStorage.setItem('gateProfile', JSON.stringify(data.gateProfile));
+          } else {
+            localStorage.removeItem('gateProfile');
           }
-          
-          navigate('/onboarding');
+
+          // If onboarding is done, go to feed; otherwise go to onboarding
+          navigate(data.onboardingDone ? '/' : '/onboarding');
         } else {
           setError(data.message || 'Authentication failed');
           setLoading(false);
         }
-      } catch (err) {
+      } catch {
         setError('Failed to connect to server.');
         setLoading(false);
       }
@@ -57,29 +54,33 @@ const Auth = () => {
     }
   });
 
+  // Already logged in
+  if (localStorage.getItem('token')) {
+    const gateProfile = localStorage.getItem('gateProfile');
+    return <Navigate to={gateProfile ? '/' : '/onboarding'} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-black text-black dark:text-white flex p-4 font-sans relative overflow-hidden transition-colors duration-500">
-      
-      {/* Theme Toggle Button */}
-      <button 
+
+      {/* Theme Toggle */}
+      <button
         onClick={toggleTheme}
         className="absolute top-6 right-6 lg:right-12 z-50 p-3 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-full shadow-sm hover:scale-105 transition-transform"
       >
         {isDark ? <Sun className="w-5 h-5 text-black dark:text-white" /> : <Moon className="w-5 h-5 text-black dark:text-white" />}
       </button>
 
-      {/* Left Half - Image (Hidden on mobile) */}
+      {/* Left — image panel */}
       <div className="hidden lg:flex lg:w-[50%] relative rounded-[2rem] overflow-hidden bg-gray-100 dark:bg-black m-1 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
-        <img 
-          src="/auth-bg.png" 
-          alt="Abstract Tech" 
+        <img
+          src="/auth-bg.png"
+          alt="Abstract Tech"
           className="absolute inset-0 w-full h-full object-cover brightness-105 contrast-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-white/60 via-white/10 to-transparent dark:from-black dark:via-black/20"></div>
-        
-        {/* Floating Text (No Card) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white/60 via-white/10 to-transparent dark:from-black dark:via-black/20" />
         <div className="absolute bottom-8 left-16 right-16">
-          <p 
+          <p
             className="text-black dark:text-white text-xl font-medium dark:font-light leading-relaxed mb-6 drop-shadow-md dark:drop-shadow-lg text-center lg:text-left"
             style={{ fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }}
           >
@@ -88,7 +89,7 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* Right Half - Login */}
+      {/* Right — login form */}
       <div className="w-full lg:w-[50%] flex items-center justify-center p-8 lg:p-16 relative z-10">
         <div className="w-full max-w-[440px]">
           <div className="mb-14 flex flex-col items-center lg:items-start text-center lg:text-left">
@@ -99,7 +100,7 @@ const Auth = () => {
                 <span className="font-light tracking-widest text-gray-500 dark:text-gray-400 italic">Room</span>
               </div>
             </div>
-            
+
             <h2 className="text-4xl font-medium tracking-tight mb-4 text-black dark:text-white">
               Welcome back
             </h2>
@@ -108,7 +109,11 @@ const Auth = () => {
             </p>
           </div>
 
-          {error && <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl mb-6 text-sm text-center shadow-sm dark:shadow-none">{error}</div>}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl mb-6 text-sm text-center shadow-sm">
+              {error}
+            </div>
+          )}
 
           <button
             onClick={() => handleGoogleLogin()}
@@ -129,10 +134,17 @@ const Auth = () => {
               </>
             )}
           </button>
-          
+
           <div className="mt-10 text-center lg:text-left">
             <p className="text-[13px] text-gray-500 font-light">
-              By continuing, you agree to our <Link to="/terms" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white underline decoration-black/20 dark:decoration-white/20 underline-offset-4">Terms of Service</Link> and <Link to="/privacy" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white underline decoration-black/20 dark:decoration-white/20 underline-offset-4">Privacy Policy</Link>.
+              By continuing, you agree to our{' '}
+              <Link to="/terms" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white underline decoration-black/20 dark:decoration-white/20 underline-offset-4">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white underline decoration-black/20 dark:decoration-white/20 underline-offset-4">
+                Privacy Policy
+              </Link>.
             </p>
           </div>
         </div>

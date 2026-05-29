@@ -1,8 +1,7 @@
-import React from 'react';
 import Sidebar from '../components/Sidebar';
 import RightSidebar from '../components/RightSidebar';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend, Cell } from 'recharts';
-import { Target, TrendingUp, AlertTriangle, Crosshair, Info } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Legend } from 'recharts';
+import { Target, TrendingUp, AlertTriangle, Crosshair } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -35,7 +34,8 @@ const Analytics = () => {
   const navigate = useNavigate();
   const gateProfile = JSON.parse(localStorage.getItem('gateProfile') || '{}');
   const userHours = Number(gateProfile.hoursPerDay) || 0;
-  const userMock = Number(gateProfile.mockScore) || 0;
+  const userMock = Number(gateProfile.mockScore ?? gateProfile.firstMockScore) || 0;
+  const syllabusCoverage = Number(gateProfile.syllabusCoverage) || 0;
   
   // AIR 1 Averages for comparison
   const AIR1_HOURS = 10;
@@ -50,16 +50,10 @@ const Analytics = () => {
 
   // Dynamic analysis for text fields
   const h = Number(gateProfile.hoursPerDay) || 0;
-  const d = Number(gateProfile.daysPerWeek) || 0;
-  const m = Number(gateProfile.monthsStudying) || 0;
-  const totalHours = h * d * 4 * m;
-  
-  const completedText = gateProfile.completedSubjects || '';
-  const weakText = gateProfile.weakSubjects || '';
-  
-  // Base syllabus score
-  const completedCount = completedText.trim() === '' ? 0 : completedText.split(',').length;
-  let syllabusScore = Math.min(completedCount * 15, 100);
+  const m = Number(gateProfile.monthsOfPrep ?? gateProfile.monthsStudying) || 0;
+  const totalHours = h * 30 * m;
+
+  let syllabusScore = syllabusCoverage;
   
   // Brutal reality cap: You can't fake syllabus completion if your total hours are low.
   if (totalHours < 50) syllabusScore = Math.min(syllabusScore, 5);
@@ -67,8 +61,7 @@ const Analytics = () => {
   else if (totalHours < 500) syllabusScore = Math.min(syllabusScore, 50);
 
   // Revision score logic
-  const weakCount = weakText.trim() === '' ? 5 : weakText.split(',').length;
-  let revisionScore = Math.max(100 - (weakCount * 15), 10);
+  let revisionScore = Math.min(100, Math.round((syllabusCoverage * 0.55) + (m * 8) + (h * 3)));
   
   // Brutal reality cap for revision
   if (totalHours < 100) revisionScore = Math.min(revisionScore, 10);
@@ -91,7 +84,7 @@ const Analytics = () => {
   // Calculate Bar Chart Insights
   const hourDiff = AIR1_HOURS - userHours;
   const mockDiff = AIR1_MOCK - userMock;
-  let barInsight = "";
+  let barInsight;
   if (hourDiff > 0 && mockDiff > 0) {
     barInsight = `You are studying ${hourDiff} hours less and scoring ${mockDiff} marks below an AIR 1 topper.`;
   } else if (hourDiff <= 0 && mockDiff > 0) {

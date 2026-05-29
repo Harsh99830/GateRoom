@@ -1,429 +1,482 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, TrendingUp, AlertTriangle, ArrowRight, ChevronRight, Share2, ChevronDown, Sun, Moon, Upload } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
-import { GATE_BRANCHES } from '../constants'; // assuming we still have this
+import { ArrowRight, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { GATE_BRANCHES } from '../constants';
 
-const CustomSelect = ({ value, options, placeholder, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectedLabel = options.find(o => o.value === value)?.label;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-  return (
-    <div className="relative">
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 outline-none transition-all cursor-pointer flex justify-between items-center hover:border-gray-300 dark:hover:border-white/20 ${isOpen ? 'ring-2 ring-black dark:ring-white border-transparent' : ''}`}
-      >
-        <span className={value ? "text-black dark:text-white" : "text-gray-400"}>
-          {selectedLabel || placeholder}
-        </span>
-        <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-      </div>
+// ─── Question definitions ──────────────────────────────────────────────────
+const QUESTIONS = [
+  {
+    id: 'branch',
+    title: "Which branch are you preparing for?",
+    subtitle: "We'll compare you against rankers from your own branch.",
+    type: 'select',
+    options: GATE_BRANCHES.map(b => ({ label: `${b.name} (${b.code})`, value: b.code })),
+    placeholder: 'Select your branch',
+  },
+  {
+    id: 'targetYear',
+    title: "Which GATE year are you targeting?",
+    subtitle: "This sets the urgency of your preparation.",
+    type: 'select',
+    options: [
+      { label: 'GATE 2026', value: '2026' },
+      { label: 'GATE 2027', value: '2027' },
+      { label: 'GATE 2028', value: '2028' },
+      { label: 'GATE 2029', value: '2029' },
+    ],
+    placeholder: 'Select target year',
+  },
+  {
+    id: 'attemptNumber',
+    title: "Is this your first GATE attempt?",
+    subtitle: "Repeat aspirants have different benchmarks — we account for that.",
+    type: 'choice',
+    options: [
+      { label: '1st attempt', value: '1' },
+      { label: '2nd attempt', value: '2' },
+      { label: '3rd attempt', value: '3' },
+      { label: '4th or more', value: '4' },
+    ],
+  },
+  {
+    id: 'collegeType',
+    title: "What's your college background?",
+    subtitle: "Sets your baseline. No judgment — just calibration.",
+    type: 'choice',
+    options: [
+      { label: 'IIT / IISc', value: 'iit' },
+      { label: 'NIT / IIIT', value: 'nit' },
+      { label: 'State Government College', value: 'state' },
+      { label: 'Private College', value: 'private' },
+    ],
+  },
+  {
+    id: 'monthsOfPrep',
+    title: "How many months have you been preparing?",
+    subtitle: "Count from when you seriously started, not from enrollment.",
+    type: 'number',
+    placeholder: 'e.g. 4',
+    unit: 'months',
+    min: 0,
+    max: 36,
+  },
+  {
+    id: 'hoursPerDay',
+    title: "How many hours do you study per day on average?",
+    subtitle: "Be honest — overreporting only hurts your rank prediction.",
+    type: 'number',
+    placeholder: 'e.g. 6',
+    unit: 'hours/day',
+    min: 0,
+    max: 18,
+  },
+  {
+    id: 'syllabusCoverage',
+    title: "How much syllabus have you completed?",
+    subtitle: "A rough honest range is enough. You can update details later through daily check-ins.",
+    type: 'choice',
+    options: [
+      { label: 'Not started', value: '0' },
+      { label: 'Below 25%', value: '20' },
+      { label: '25% - 50%', value: '40' },
+      { label: '50% - 75%', value: '65' },
+      { label: 'Above 75%', value: '85' },
+      { label: 'Full syllabus', value: '100' },
+    ],
+  },
+  {
+    id: 'testSeries',
+    title: "Which test series are you using?",
+    subtitle: "Helps us calibrate your mock score against a common scale.",
+    type: 'choice',
+    options: [
+      { label: 'MADE Easy', value: 'made_easy' },
+      { label: 'Gate Academy', value: 'gate_academy' },
+      { label: 'Ace Engineering', value: 'ace' },
+      { label: 'TestBook / Unacademy', value: 'testbook' },
+      { label: 'Self-made / Mixed', value: 'mixed' },
+      { label: "Haven't started yet", value: 'none' },
+    ],
+  },
+  {
+    id: 'firstMockScore',
+    title: "What's your latest mock test score?",
+    subtitle: "This is the strongest signal for rank prediction. Skip if you haven't given one.",
+    type: 'mock',
+    placeholder: 'Score out of 100',
+    min: 0,
+    max: 100,
+  },
+];
 
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-          <div className="absolute z-50 w-full bottom-full mb-2 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/10 rounded-xl shadow-xl max-h-60 overflow-y-auto p-1 backdrop-blur-xl origin-bottom animate-in fade-in zoom-in-95 duration-100">
-            {options.map((opt) => (
-              <div 
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setIsOpen(false);
-                }}
-                className={`px-3 py-2.5 mx-1 my-0.5 rounded-lg cursor-pointer transition-colors text-sm font-medium ${
-                  value === opt.value 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
-                }`}
-              >
-                {opt.label}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+// ─── Rank prediction logic ────────────────────────────────────────────────
+function predictRank(data) {
+  const mock = data.noMockYet ? null : Number(data.firstMockScore);
+  const hours = Number(data.hoursPerDay) || 0;
+  const months = Number(data.monthsOfPrep) || 0;
+  const syllabus = Number(data.syllabusCoverage) || 0;
+  const totalHours = hours * months * 30;
 
-const Onboarding = () => {
+  // Weight: mock 40%, hours pace 20%, syllabus coverage 15%, prep maturity 15%, context 15%
+  let score = 0;
+
+  // Mock score component (0–40 pts)
+  if (mock !== null && !isNaN(mock)) {
+    if (mock >= 85) score += 40;
+    else if (mock >= 75) score += 34;
+    else if (mock >= 60) score += 26;
+    else if (mock >= 45) score += 18;
+    else if (mock >= 25) score += 10;
+    else score += 4;
+  } else {
+    score += 10; // neutral if no mock yet
+  }
+
+  // Study hours component (0–20 pts)
+  if (hours >= 10) score += 20;
+  else if (hours >= 8) score += 17;
+  else if (hours >= 6) score += 13;
+  else if (hours >= 4) score += 9;
+  else if (hours >= 2) score += 5;
+  else score += 1;
+
+  // Syllabus coverage component (0-15 pts)
+  score += Math.min(15, Math.round(syllabus * 0.15));
+
+  // Total hours accumulated (0-15 pts)
+  if (totalHours >= 1800) score += 15;
+  else if (totalHours >= 1200) score += 12;
+  else if (totalHours >= 700) score += 8;
+  else if (totalHours >= 300) score += 4;
+  else score += 1;
+
+  // Attempt number — repeat aspirants tend to do better (0–10 pts)
+  const attempt = Number(data.attemptNumber) || 1;
+  if (attempt === 2) score += 8;
+  else if (attempt >= 3) score += 5;
+  else score += 4;
+
+  // College type — baseline adjustment (0–5 pts)
+  const college = data.collegeType;
+  if (college === 'iit') score += 5;
+  else if (college === 'nit') score += 4;
+  else if (college === 'state') score += 3;
+  else score += 2;
+
+  // Score -> rank range mapping
+  // Score out of 95 points total
+  let low, high;
+  if (score >= 80) { low = 1; high = 50; }
+  else if (score >= 70) { low = 50; high = 200; }
+  else if (score >= 58) { low = 200; high = 700; }
+  else if (score >= 46) { low = 700; high = 2000; }
+  else if (score >= 34) { low = 2000; high = 6000; }
+  else if (score >= 22) { low = 6000; high = 20000; }
+  else if (score >= 12) { low = 20000; high = 60000; }
+  else { low = 60000; high = 150000; }
+
+  return { low, high, score };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────
+export default function Onboarding() {
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [noMockYet, setNoMockYet] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [predictedRank, setPredictedRank] = useState(null);
+  const [error, setError] = useState('');
 
-  const [formData, setFormData] = useState({
-    hoursPerDay: '',
-    daysPerWeek: '',
-    monthsStudying: '',
-    branch: '',
-    targetYear: '',
-    completedSubjects: '',
-    weakSubjects: '',
-    lastMockScore: '',
-    noMockYet: false
-  });
-  const [proofFile, setProofFile] = useState(null);
+  const question = QUESTIONS[currentQ];
+  const progress = Math.round(((currentQ + 1) / QUESTIONS.length) * 100);
+  const currentAnswer = answers[question.id];
 
-  const handleChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData({ ...formData, [e.target.name]: value });
+  const isAnswered = () => {
+    if (question.type === 'mock') return noMockYet || (currentAnswer !== undefined && currentAnswer !== '');
+    return currentAnswer !== undefined && currentAnswer !== '';
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setProofFile(e.target.files[0]);
+  const handleSelect = (value) => {
+    setAnswers(prev => ({ ...prev, [question.id]: value }));
+  };
+
+  const handleNext = () => {
+    if (currentQ < QUESTIONS.length - 1) {
+      setCurrentQ(q => q + 1);
+    } else {
+      handleSubmit();
     }
   };
 
-  const handlePredict = () => {
-    setLoading(true);
-    // Fake prediction logic
-    setTimeout(() => {
-      const h = Number(formData.hoursPerDay) || 0;
-      const d = Number(formData.daysPerWeek) || 0;
-      const m = Number(formData.monthsStudying) || 0;
-      const totalHours = h * d * 4 * m;
-      const mock = Number(formData.mockScore) || 0;
-      
-      let predictedAir = 15000;
-      let message = "";
-      
-      if (formData.noMockYet) {
-        // Rely purely on hours since no mock score is provided
-        if (totalHours > 1500) {
-          predictedAir = Math.floor(Math.random() * 500) + 500;
-          message = "Great consistency! Take a mock test to break into Top 100.";
-        } else if (totalHours > 800) {
-          predictedAir = Math.floor(Math.random() * 2000) + 1500;
-          message = "Good effort, but you need to start taking mock tests to see your real standing.";
-        } else if (totalHours > 300) {
-          predictedAir = Math.floor(Math.random() * 10000) + 5000;
-          message = "Average preparation. You are far behind the competition.";
-        } else if (totalHours > 50) {
-          predictedAir = Math.floor(Math.random() * 50000) + 40000;
-          message = "Reality Check: Toppers study 10x more than this. Time to wake up.";
-        } else {
-          // Worst case scenario: out of 10 Lakh candidates
-          predictedAir = Math.floor(Math.random() * 200000) + 750000; // AIR 7.5L to 9.5L
-          message = "Brutal Truth: With this prep, you are at the absolute bottom of 10 Lakh candidates. Start studying seriously.";
-        }
-      } else {
-        // Mock score is the biggest predictor
-        if (mock >= 85) {
-          predictedAir = Math.floor(Math.random() * 50) + 1;
-          message = "Phenomenal! You are in the AIR 1-50 zone. Maintain this momentum.";
-        } else if (mock >= 75) {
-          predictedAir = Math.floor(Math.random() * 200) + 50;
-          message = "Excellent! You're on track for a Top IIT. Push for those last 10 marks.";
-        } else if (mock >= 60) {
-          predictedAir = Math.floor(Math.random() * 700) + 300;
-          message = "Very good score. Focus on your weak areas to break into the top 100.";
-        } else if (mock >= 45) {
-          predictedAir = Math.floor(Math.random() * 2000) + 1500;
-          message = "Decent base, but high competition ahead. You need serious revision.";
-        } else if (mock >= 25) {
-          predictedAir = Math.floor(Math.random() * 30000) + 10000;
-          message = "Your mock scores indicate a lack of conceptual clarity. Revisit the basics.";
-        } else {
-          // Worst case scenario: out of 10 Lakh candidates
-          predictedAir = Math.floor(Math.random() * 250000) + 650000; // AIR 6.5L to 9L
-          message = "Extremely low score. You are behind 9 Lakh students. Stop taking mocks and read standard books.";
-        }
-        
-        // Hour modifier: adjust rank slightly based on consistency
-        if (h >= 8) predictedAir = Math.floor(predictedAir * 0.85); // 15% boost
-        else if (h < 4) predictedAir = Math.floor(predictedAir * 1.3); // 30% penalty
-      }
-      
-      // Ensure rank doesn't go below 1
-      predictedAir = Math.max(1, predictedAir);
-
-      setResult({
-        air: predictedAir,
-        message,
-        deficit: totalHours < 1200 ? 1200 - totalHours : 0,
-        noMockYet: formData.noMockYet
-      });
-
-      // Update streak for updating stats
-      const today = new Date().toDateString();
-      const streakData = JSON.parse(localStorage.getItem('userStreak') || '{"count": 0, "lastPostDate": null}');
-      
-      if (streakData.lastPostDate !== today) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        if (streakData.lastPostDate === yesterday.toDateString()) {
-          streakData.count += 1;
-        } else {
-          streakData.count = 1;
-        }
-        streakData.lastPostDate = today;
-        localStorage.setItem('userStreak', JSON.stringify(streakData));
-        window.dispatchEvent(new Event('streakUpdated'));
-      }
-
-      setLoading(false);
-      setStep(2);
-    }, 1500);
+  const handleBack = () => {
+    if (currentQ > 0) setCurrentQ(q => q - 1);
   };
 
-  if (step === 2 && result) {
+  const handleSubmit = async () => {
+    setSaving(true);
+    setError('');
+
+    const rank = predictRank({ ...answers, noMockYet });
+
+    const payload = {
+      branch: answers.branch,
+      targetYear: answers.targetYear,
+      attemptNumber: Number(answers.attemptNumber) || 1,
+      collegeType: answers.collegeType,
+      monthsOfPrep: Number(answers.monthsOfPrep) || 0,
+      hoursPerDay: Number(answers.hoursPerDay) || 0,
+      syllabusCoverage: Number(answers.syllabusCoverage) || 0,
+      testSeries: answers.testSeries || null,
+      firstMockScore: noMockYet ? null : (Number(answers.firstMockScore) || null),
+      noMockYet,
+      predictedRankLow: rank.low,
+      predictedRankHigh: rank.high,
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/onboarding`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || 'Failed to save');
+
+      localStorage.setItem('gateProfile', JSON.stringify(data.gateProfile || {
+        ...payload,
+        mockScore: payload.firstMockScore,
+        air: rank.low,
+      }));
+      setPredictedRank(rank);
+      setDone(true);
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Result screen ────────────────────────────────────────────────────────
+  if (done && predictedRank) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] dark:bg-black text-black dark:text-white flex items-center justify-center p-4 relative transition-colors duration-500">
-        
-        <div className="max-w-md w-full bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-black dark:bg-white" />
-          
+      <div className="min-h-screen bg-[#F8F9FA] dark:bg-black flex items-center justify-center p-4 transition-colors duration-500">
+        <div className="max-w-md w-full bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
           <div className="text-center mb-8">
-            <div className="inline-flex p-4 rounded-full bg-gray-100 dark:bg-white/10 text-black dark:text-white mb-4 border border-gray-200 dark:border-white/10">
-              <Target className="w-8 h-8" />
+            <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-black dark:text-white" />
+            <p className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-2">Based on your prep</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">You're currently on track for</p>
+            <div className="text-5xl font-extrabold tracking-tighter text-black dark:text-white my-3">
+              AIR {predictedRank.low.toLocaleString()} – {predictedRank.high.toLocaleString()}
             </div>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-2">Predicted Rank</h2>
-            <div className="text-6xl font-extrabold tracking-tighter mb-4">AIR {result.air}</div>
-            <p className="text-lg font-medium text-black dark:text-white mb-2">
-              {result.message}
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+              {noMockYet
+                ? "Give your first mock test to sharpen this estimate significantly."
+                : "Mock score is your strongest signal — keep improving it."}
             </p>
-            {result.noMockYet && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                Add your mock score later for a more accurate estimate.
-              </p>
-            )}
           </div>
 
-          {result.deficit > 0 && (
-            <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-4 mb-8 flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-black dark:text-white flex-shrink-0" />
-              <p className="text-sm text-gray-800 dark:text-gray-200">
-                You are <strong>{result.deficit} hours</strong> behind the average AIR 100 candidate. Increase your daily hours by 3 to catch up.
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-3">
-            <button className="w-full py-4 rounded-xl bg-black dark:bg-white text-white dark:text-black font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-              <Share2 className="w-5 h-5" /> Share Reality Check
-            </button>
-            <button 
-              onClick={() => {
-                const profile = JSON.parse(localStorage.getItem('gateProfile') || '{}');
-                localStorage.setItem('gateProfile', JSON.stringify({ ...profile, ...formData, air: result.air }));
-                navigate('/');
-              }}
-              className="w-full py-4 rounded-xl bg-gray-100 dark:bg-white/5 text-black dark:text-white font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-            >
-              Continue to Feed <ArrowRight className="w-5 h-5" />
-            </button>
+          <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-4 mb-8 text-sm text-gray-600 dark:text-gray-400">
+            This is a starting baseline. As you log daily check-ins, your predicted rank will update in real time based on your actual progress vs AIR rankers.
           </div>
+
+          <button
+            onClick={() => navigate('/')}
+            className="w-full py-4 rounded-xl bg-black dark:bg-white text-white dark:text-black font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+          >
+            Go to Dashboard <ArrowRight className="w-5 h-5" />
+          </button>
         </div>
       </div>
     );
   }
 
-  const isPredictDisabled = 
-    !formData.hoursPerDay || 
-    !formData.daysPerWeek || 
-    loading || 
-    (formData.lastMockScore && !formData.noMockYet && !proofFile);
-
+  // ── Question screen ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-black text-black dark:text-white flex items-center justify-center p-4 relative transition-colors duration-500">
-      
-      <div className="max-w-3xl w-full">
-        <div className="flex justify-between items-center mb-8">
-          <img src="/favicon.svg" alt="GateRoom Logo" className="w-8 h-8 invert dark:invert-0" />
-          <button 
-            onClick={() => navigate('/')}
-            className="text-gray-500 hover:text-black dark:hover:text-white font-medium text-sm transition-colors"
-          >
-            Skip for now
-          </button>
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-black text-black dark:text-white flex flex-col transition-colors duration-500">
+
+      {/* Progress bar */}
+      <div className="w-full h-1 bg-gray-200 dark:bg-white/10">
+        <div
+          className="h-full bg-black dark:bg-white transition-all duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-2">
+          <img src="/favicon.svg" alt="GateRoom" className="w-6 h-6 invert dark:invert-0" />
+          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {currentQ + 1} of {QUESTIONS.length}
+          </span>
         </div>
+        <button
+          onClick={() => navigate('/')}
+          className="text-sm text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+        >
+          Skip for now
+        </button>
+      </div>
 
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">Let's find your baseline.</h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Be brutally honest. We'll compare your stats against past toppers to predict your standing.</p>
+      {/* Question */}
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
+        <div className="w-full max-w-lg">
 
-        <div className="space-y-5 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 p-5 md:p-6 rounded-3xl shadow-xl shadow-black/5">
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">Hours per day</label>
-              <input 
-                type="number" 
-                name="hoursPerDay"
-                value={formData.hoursPerDay}
-                onChange={handleChange}
-                placeholder="Enter daily hours"
-                className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">Days per week</label>
-              <input 
-                type="number" 
-                name="daysPerWeek"
-                max="7"
-                value={formData.daysPerWeek}
-                onChange={handleChange}
-                placeholder="Enter days (1-7)"
-                className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all"
-              />
-            </div>
+          {/* Question text */}
+          <div className="mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">
+              {question.title}
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+              {question.subtitle}
+            </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold mb-1.5">Months prep so far</label>
-            <input 
-              type="number" 
-              name="monthsStudying"
-              value={formData.monthsStudying}
-              onChange={handleChange}
-              placeholder="Total months of prep"
-              className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all"
-            />
-          </div>
+          {/* Answer input */}
+          <div className="mb-8">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">Completed Subjects</label>
-              <input 
-                type="text" 
-                name="completedSubjects"
-                value={formData.completedSubjects}
-                onChange={handleChange}
-                placeholder="e.g. Math, Aptitude"
-                className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">Weak Subjects</label>
-              <input 
-                type="text" 
-                name="weakSubjects"
-                value={formData.weakSubjects}
-                onChange={handleChange}
-                placeholder="e.g. Networks, Algo"
-                className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all"
-              />
-            </div>
-          </div>
+            {/* Select dropdown */}
+            {question.type === 'select' && (
+              <div className="space-y-2">
+                {question.options.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleSelect(opt.value)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${
+                      currentAnswer === opt.value
+                        ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white'
+                        : 'bg-white dark:bg-[#111] border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
-          <div>
-            <label className="block text-sm font-semibold mb-1.5">Last Mock Test Score & Proof</label>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input 
-                type="number" 
-                name="lastMockScore"
-                value={formData.noMockYet ? '' : formData.lastMockScore}
-                onChange={handleChange}
-                disabled={formData.noMockYet}
-                placeholder="Score (e.g. 45)"
-                className={`w-full sm:w-1/2 px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${formData.noMockYet ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-              
-              {!formData.noMockYet && formData.lastMockScore && (
-                <div className="relative w-full sm:w-1/2 animate-in fade-in zoom-in-95 duration-300">
-                  <input 
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+            {/* Choice chips */}
+            {question.type === 'choice' && (
+              <div className="grid grid-cols-2 gap-3">
+                {question.options.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleSelect(opt.value)}
+                    className={`px-4 py-3 rounded-xl border transition-all text-sm font-medium text-center ${
+                      currentAnswer === opt.value
+                        ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white'
+                        : 'bg-white dark:bg-[#111] border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Number input */}
+            {question.type === 'number' && (
+              <div className="relative">
+                <input
+                  type="number"
+                  min={question.min}
+                  max={question.max}
+                  value={currentAnswer || ''}
+                  onChange={e => handleSelect(e.target.value)}
+                  placeholder={question.placeholder}
+                  className="w-full px-4 py-4 text-2xl font-bold rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all"
+                  autoFocus
+                />
+                {question.unit && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+                    {question.unit}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Mock score input */}
+            {question.type === 'mock' && (
+              <div className="space-y-4">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={noMockYet ? '' : (currentAnswer || '')}
+                    onChange={e => handleSelect(e.target.value)}
+                    disabled={noMockYet}
+                    placeholder={question.placeholder}
+                    className={`w-full px-4 py-4 text-2xl font-bold rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${noMockYet ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    autoFocus={!noMockYet}
                   />
-                  <div className="w-full h-full px-4 py-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 flex items-center justify-center gap-2 transition-all hover:bg-blue-50 dark:hover:bg-blue-900/40">
-                    <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300 truncate">
-                      {proofFile ? proofFile.name : "Upload Screenshot"}
-                    </span>
-                  </div>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+                    / 100
+                  </span>
                 </div>
+                <label className="flex items-center gap-3 cursor-pointer w-fit">
+                  <div
+                    onClick={() => setNoMockYet(v => !v)}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      noMockYet
+                        ? 'bg-black dark:bg-white border-black dark:border-white'
+                        : 'border-gray-300 dark:border-white/30'
+                    }`}
+                  >
+                    {noMockYet && (
+                      <svg className="w-3 h-3 text-white dark:text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                    Haven't given any mock yet
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-red-500 text-sm mb-4">{error}</p>
+          )}
+
+          {/* Navigation */}
+          <div className="flex items-center gap-3">
+            {currentQ > 0 && (
+              <button
+                onClick={handleBack}
+                className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30 transition-all"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              disabled={!isAnswered() || saving}
+              className="flex-1 py-3.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> Saving...</>
+              ) : currentQ === QUESTIONS.length - 1 ? (
+                <>Get My Rank <CheckCircle2 className="w-5 h-5" /></>
+              ) : (
+                <>Next <ArrowRight className="w-5 h-5" /></>
               )}
-            </div>
-
-            <label className="flex items-center gap-2 mt-3 cursor-pointer w-fit">
-              <input 
-                type="checkbox" 
-                name="noMockYet"
-                checked={formData.noMockYet}
-                onChange={handleChange}
-                className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black accent-black cursor-pointer"
-              />
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Haven't given any mock yet
-              </span>
-            </label>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">Target Year</label>
-              <CustomSelect 
-                value={formData.targetYear}
-                onChange={(val) => setFormData({...formData, targetYear: val})}
-                placeholder="Select Year"
-                options={[
-                  { label: 'GATE 2026', value: '2026' },
-                  { label: 'GATE 2027', value: '2027' },
-                  { label: 'GATE 2028', value: '2028' },
-                  { label: 'GATE 2029', value: '2029' },
-                ]}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1.5">Branch</label>
-              <CustomSelect 
-                value={formData.branch}
-                onChange={(val) => setFormData({...formData, branch: val})}
-                placeholder="Select Branch"
-                options={[
-                  { label: 'Aerospace Engineering (AE)', value: 'AE' },
-                  { label: 'Agricultural Engineering (AG)', value: 'AG' },
-                  { label: 'Architecture and Planning (AR)', value: 'AR' },
-                  { label: 'Biomedical Engineering (BM)', value: 'BM' },
-                  { label: 'Biotechnology (BT)', value: 'BT' },
-                  { label: 'Civil Engineering (CE)', value: 'CE' },
-                  { label: 'Chemical Engineering (CH)', value: 'CH' },
-                  { label: 'Computer Science and Information Technology (CS)', value: 'CS' },
-                  { label: 'Chemistry (CY)', value: 'CY' },
-                  { label: 'Data Science & Artificial Intelligence (DA)', value: 'DA' },
-                  { label: 'Electronics and Communication (EC)', value: 'EC' },
-                  { label: 'Electrical Engineering (EE)', value: 'EE' },
-                  { label: 'Environmental Science & Engg (ES)', value: 'ES' },
-                  { label: 'Ecology and Evolution (EY)', value: 'EY' },
-                  { label: 'Geomatics Engineering (GE)', value: 'GE' },
-                  { label: 'Geology and Geophysics (GG)', value: 'GG' },
-                  { label: 'Instrumentation Engineering (IN)', value: 'IN' },
-                  { label: 'Mathematics (MA)', value: 'MA' },
-                  { label: 'Mechanical Engineering (ME)', value: 'ME' },
-                  { label: 'Mining Engineering (MN)', value: 'MN' },
-                  { label: 'Metallurgical Engineering (MT)', value: 'MT' },
-                  { label: 'Naval Architecture & Marine Engg (NM)', value: 'NM' },
-                  { label: 'Petroleum Engineering (PE)', value: 'PE' },
-                  { label: 'Physics (PH)', value: 'PH' },
-                  { label: 'Production and Industrial Engg (PI)', value: 'PI' },
-                  { label: 'Statistics (ST)', value: 'ST' },
-                  { label: 'Textile Engineering and Fibre Science (TF)', value: 'TF' },
-                  { label: 'Engineering Sciences (XE)', value: 'XE' },
-                  { label: 'Humanities and Social Sciences (XH)', value: 'XH' },
-                  { label: 'Life Sciences (XL)', value: 'XL' },
-                ]}
-              />
-            </div>
-          </div>
-
-          <button 
-            onClick={handlePredict}
-            disabled={isPredictDisabled}
-            className="w-full py-3.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-          >
-            {loading ? "Analyzing against Toppers..." : "Predict My Rank"}
-          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default Onboarding;
+}

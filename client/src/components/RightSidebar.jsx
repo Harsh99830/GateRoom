@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, ArrowUpRight, Target, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const RightSidebar = () => {
   const navigate = useNavigate();
   const gateProfile = JSON.parse(localStorage.getItem('gateProfile') || '{}');
-  const predictedAir = gateProfile.air || null;
+  const predictedLow = gateProfile.predictedRankLow || gateProfile.air || null;
+  const predictedHigh = gateProfile.predictedRankHigh || null;
+  const hasPrediction = Boolean(predictedLow);
   const [streakCount, setStreakCount] = useState(0);
 
   useEffect(() => {
@@ -27,9 +29,11 @@ const RightSidebar = () => {
           <TrendingUp className="w-5 h-5 text-black dark:text-white" />
           Your Current Standing
         </h3>
-        {predictedAir ? (
+        {hasPrediction ? (
           <>
-            <div className="text-4xl font-black tracking-tighter mb-1 text-black dark:text-white">AIR {predictedAir.toLocaleString()}</div>
+            <div className="text-3xl font-black tracking-tighter mb-1 text-black dark:text-white">
+              AIR {predictedLow.toLocaleString()}{predictedHigh ? ` - ${predictedHigh.toLocaleString()}` : ''}
+            </div>
             <p className="text-xs text-gray-500 mb-6">Predicted based on your latest stats.</p>
           </>
         ) : (
@@ -58,12 +62,12 @@ const RightSidebar = () => {
       >
         <h4 className="text-sm font-bold flex items-center gap-2 mb-2"><Target className="w-4 h-4 text-blue-500" /> Profile Completed</h4>
         <p className="text-sm font-medium text-black dark:text-white">
-          {predictedAir ? "All set for GATE 2026!" : "Finish setup to unlock rank"}
+          {hasPrediction ? `All set for GATE ${gateProfile.targetYear || '2026'}!` : "Finish setup to unlock rank"}
         </p>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-3">
-          <div className="bg-black dark:bg-white h-1.5 rounded-full transition-all duration-1000" style={{ width: predictedAir ? '100%' : '30%' }}></div>
+          <div className="bg-black dark:bg-white h-1.5 rounded-full transition-all duration-1000" style={{ width: hasPrediction ? '100%' : '30%' }}></div>
         </div>
-        <p className="text-xs text-right mt-1 text-gray-500">{predictedAir ? '100%' : '30%'}</p>
+        <p className="text-xs text-right mt-1 text-gray-500">{hasPrediction ? '100%' : '30%'}</p>
       </button>
     </aside>
   );

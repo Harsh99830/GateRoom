@@ -10,7 +10,7 @@ const Sidebar = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const navItems = [
-    { name: 'Analytics', icon: BarChart2, path: '/analytics' },
+    { name: 'Dashboard', icon: BarChart2, path: '/analytics' },
     { name: 'Rankers', icon: Trophy, path: '/rankers' },
     { name: 'Discussions', icon: Home, path: '/' },
     { name: 'Gate Talks', icon: Users, path: '/discussions' },
