@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Video, Users, Filter, ArrowRight, Cpu, UserCircle, LogOut, Moon, Sun, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import Leaderboard from '../components/Leaderboard';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -152,6 +153,33 @@ const Landing = () => {
             title="Video & Chat"
             desc="High-quality video and fast text chat designed to help you stay focused on your studies."
           />
+        </div>
+        
+        {/* Leaderboard Section */}
+        <div className="w-full mt-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column: Leaderboard */}
+            <div>
+              <div className="text-left mb-8">
+                <h2 className="text-3xl md:text-4xl font-bold font-serif tracking-tight text-black dark:text-white mb-4">
+                  Top Aspirants
+                </h2>
+                <p className="text-gray-500 max-w-lg">Compete with engineers across the nation and see who's studying the most this week.</p>
+              </div>
+              <div className="bg-transparent dark:bg-transparent">
+                <Leaderboard currentUser={isLoggedIn ? JSON.parse(localStorage.getItem('user')) : null} />
+              </div>
+            </div>
+            
+            {/* Right Column: Illustration */}
+            <div className="hidden lg:flex justify-center relative">
+              <img 
+                src="/leaderboard_illustration.png" 
+                alt="GATERoom Top Aspirants" 
+                className="relative w-full max-w-md object-cover rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10" 
+              />
+            </div>
+          </div>
         </div>
       </main>
 

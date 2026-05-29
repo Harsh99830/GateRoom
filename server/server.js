@@ -9,6 +9,10 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// Start cron jobs
+const { startCronJobs } = require('./cron');
+startCronJobs();
+
 app.use(cors({
   origin: process.env.CLIENT_URL || '*',
   methods: ['GET', 'POST'],
@@ -23,13 +27,51 @@ const io = new Server(server, {
 });
 
 // Socket.io logic for WebRTC signaling
+const botEngine = require('./bots/botEngine');
 let waitingUsers = [];
 const activeMatches = new Map();
+const connectedUsers = new Map(); // Track all real connected users
+
+botEngine.on('bot-joined', (bot) => {
+  if (global.ioInstance) {
+    global.ioInstance.to(bot.branch).emit('member-joined', { name: bot.name, branch: bot.branch });
+  }
+});
+
+botEngine.on('bot-away', (bot) => {
+  if (global.ioInstance) {
+    global.ioInstance.to(bot.branch).emit('member-away', { name: bot.name });
+  }
+});
+
+// Every 60 sec, emit updated bot list + real users to all connected clients
+setInterval(() => {
+  botEngine.setRealUserCount(connectedUsers.size);
+  const activeBots = botEngine.getActiveBots();
+  const realUsers = Array.from(connectedUsers.values());
+  const mergedList = [...realUsers, ...activeBots];
+  
+  if (global.ioInstance) {
+    global.ioInstance.emit('room-update', mergedList);
+  }
+}, 60000);
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
+  
+  // Set global io for interval/botEngine if not set
+  if (!global.ioInstance) global.ioInstance = io;
 
   socket.on('join-queue', (profile) => {
+    // Record real user for the network list
+    connectedUsers.set(socket.id, {
+      id: socket.id,
+      name: profile.name,
+      branch: profile.branch,
+      todayMinutes: 0, // Real user stats can be tracked here
+      streak: 1
+    });
+
     if (waitingUsers.length > 0) {
       // Match found
       const partner = waitingUsers.shift();
@@ -61,13 +103,40 @@ io.on('connection', (socket) => {
     waitingUsers = waitingUsers.filter(user => user.socket.id !== socket.id);
   });
 
-  socket.on('join-room', (roomId, userId) => {
-    socket.join(roomId);
-    socket.to(roomId).emit('user-connected', userId);
+  socket.on('join-room', (payload, userIdParam) => {
+    if (typeof payload === 'object' && payload.branch) {
+      const { branch, userId } = payload;
+      socket.join(branch);
+      socket.branchRoom = branch;
+      socket.joinTime = Date.now();
+      
+      const user = connectedUsers.get(socket.id);
+      if (user) {
+        socket.to(branch).emit('member-joined', { name: user.name, branch });
+      }
+    } else {
+      const roomId = payload;
+      const userId = userIdParam;
+      socket.join(roomId);
+      socket.to(roomId).emit('user-connected', userId);
+    }
+  });
 
-    socket.on('disconnect', () => {
-      socket.to(roomId).emit('user-disconnected', userId);
-    });
+  socket.on('leave-room', (payload) => {
+    if (typeof payload === 'object' && payload.branch) {
+      const { branch, userId } = payload;
+      socket.leave(branch);
+      const user = connectedUsers.get(socket.id);
+      if (user) {
+        socket.to(branch).emit('member-away', { name: user.name });
+      }
+      
+      if (socket.joinTime) {
+        const sessionMinutes = Math.floor((Date.now() - socket.joinTime) / 60000);
+        console.log(`User left branch room after ${sessionMinutes} minutes`);
+      }
+      socket.branchRoom = null;
+    }
   });
 
   // WebRTC signaling
@@ -92,6 +161,16 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     
+    if (socket.branchRoom) {
+      const user = connectedUsers.get(socket.id);
+      if (user) {
+        socket.to(socket.branchRoom).emit('member-away', { name: user.name });
+      }
+    }
+
+    // Remove from network tracking
+    connectedUsers.delete(socket.id);
+
     // Remove from global queue
     waitingUsers = waitingUsers.filter(user => user.socket.id !== socket.id);
     
@@ -108,6 +187,34 @@ io.on('connection', (socket) => {
 
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
+
+const studyRoutes = require('./routes/study');
+app.use('/api/study', studyRoutes);
+
+const badgeRoutes = require('./routes/badge');
+app.use('/api/badge', badgeRoutes);
+
+app.get('/api/room/:branch/count', (req, res) => {
+  const branch = req.params.branch;
+  const activeBots = botEngine.getActiveBots().filter(b => b.branch === branch);
+  const realUsers = Array.from(connectedUsers.values()).filter(u => u.branch === branch);
+  
+  res.json({
+    total: activeBots.length + realUsers.length,
+    bots: activeBots.length,
+    real: realUsers.length
+  });
+});
+
+app.post('/api/room/checkin', (req, res) => {
+  const { userId, branch } = req.body;
+  res.json({ success: true, message: 'Checked in successfully' });
+});
+
+app.post('/api/room/checkout', (req, res) => {
+  const { userId, sessionMinutes } = req.body;
+  res.json({ success: true, message: 'Checked out successfully', sessionMinutes });
+});
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

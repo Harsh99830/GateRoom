@@ -5,17 +5,16 @@ const ThemeContext = createContext();
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
-  const [isDark, setIsDark] = useState(false); // Default to light
+  const [isDark, setIsDark] = useState(true); // Default to dark
 
   useEffect(() => {
-    // Check local storage or system preference on mount if desired, but user requested default light.
     const savedTheme = localStorage.getItem('gateroom-theme');
-    if (savedTheme === 'dark') {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
+    if (savedTheme === 'light') {
       setIsDark(false);
       document.documentElement.classList.remove('dark');
+    } else {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
     }
   }, []);
 
