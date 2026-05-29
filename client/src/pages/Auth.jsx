@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
-import { Cpu, Loader2 } from 'lucide-react';
+import { Cpu, Loader2, Sun, Moon } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
+import { useTheme } from '../context/ThemeContext';
 
 const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { isDark, toggleTheme } = useTheme();
 
   // If already logged in, redirect to setup
   if (localStorage.getItem('token')) {
-    return <Navigate to="/setup" />;
+    return <Navigate to="/onboarding" />;
   }
 
   const handleGoogleLogin = useGoogleLogin({
@@ -40,7 +42,7 @@ const Auth = () => {
             }));
           }
           
-          navigate('/setup');
+          navigate('/onboarding');
         } else {
           setError(data.message || 'Authentication failed');
           setLoading(false);
@@ -56,21 +58,32 @@ const Auth = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-black text-black dark:text-white flex p-4 font-sans relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-black text-black dark:text-white flex p-4 font-sans relative overflow-hidden transition-colors duration-500">
       
+      {/* Theme Toggle Button */}
+      <button 
+        onClick={toggleTheme}
+        className="absolute top-6 right-6 lg:right-12 z-50 p-3 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-full shadow-sm hover:scale-105 transition-transform"
+      >
+        {isDark ? <Sun className="w-5 h-5 text-black dark:text-white" /> : <Moon className="w-5 h-5 text-black dark:text-white" />}
+      </button>
+
       {/* Left Half - Image (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-[50%] relative rounded-[2rem] overflow-hidden bg-gray-100 dark:bg-black m-1 border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
         <img 
           src="/auth-bg.png" 
           alt="Abstract Tech" 
-          className="absolute inset-0 w-full h-full object-cover opacity-90 dark:opacity-100"
+          className="absolute inset-0 w-full h-full object-cover brightness-105 contrast-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent dark:from-black dark:via-black/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white/60 via-white/10 to-transparent dark:from-black dark:via-black/20"></div>
         
         {/* Floating Text (No Card) */}
-        <div className="absolute bottom-16 left-16 right-16">
-          <p className="text-black dark:text-white text-xl font-medium dark:font-light leading-relaxed mb-6 drop-shadow-md dark:drop-shadow-lg text-center lg:text-left">
-            Connecting with the right peers completely changed the trajectory of my GATE preparation. Isolation is the enemy of engineering.
+        <div className="absolute bottom-8 left-16 right-16">
+          <p 
+            className="text-black dark:text-white text-xl font-medium dark:font-light leading-relaxed mb-6 drop-shadow-md dark:drop-shadow-lg text-center lg:text-left"
+            style={{ fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }}
+          >
+            You don't know if you're behind. That's the problem.
           </p>
         </div>
       </div>
@@ -80,7 +93,7 @@ const Auth = () => {
         <div className="w-full max-w-[440px]">
           <div className="mb-14 flex flex-col items-center lg:items-start text-center lg:text-left">
             <div className="flex items-center gap-3 mb-10 text-2xl font-medium tracking-tight">
-              <Cpu className="w-7 h-7 text-black dark:text-white" />
+              <img src="/favicon.svg" alt="GateRoom Logo" className="w-8 h-8 invert dark:invert-0" />
               <div className="flex items-center">
                 <span className="font-extrabold tracking-tighter text-black dark:text-white">Gate</span>
                 <span className="font-light tracking-widest text-gray-500 dark:text-gray-400 italic">Room</span>

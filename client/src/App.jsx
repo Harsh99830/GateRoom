@@ -1,13 +1,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Landing from './pages/Landing';
-import Setup from './pages/Setup';
-import Waiting from './pages/Waiting';
-import Call from './pages/Call';
 import Auth from './pages/Auth';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import About from './pages/About';
+import Onboarding from './pages/Onboarding';
+import DashboardFeed from './pages/DashboardFeed';
+import Rankers from './pages/Rankers';
+import GateTalks from './pages/GateTalks';
+import Analytics from './pages/Analytics';
 import { ThemeProvider } from './context/ThemeContext';
 
 const ProtectedRoute = ({ children }) => {
@@ -20,14 +21,15 @@ function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<ProtectedRoute><DashboardFeed /></ProtectedRoute>} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/about" element={<About />} />
-          <Route path="/setup" element={<ProtectedRoute><Setup /></ProtectedRoute>} />
-          <Route path="/waiting" element={<ProtectedRoute><Waiting /></ProtectedRoute>} />
-          <Route path="/call/:roomId" element={<ProtectedRoute><Call /></ProtectedRoute>} />
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+          <Route path="/rankers" element={<ProtectedRoute><Rankers /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+          <Route path="/discussions" element={<ProtectedRoute><GateTalks /></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
