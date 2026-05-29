@@ -64,9 +64,7 @@ const Sidebar = () => {
         
         <button 
           onClick={() => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('gateProfile');
+            // User requested to NOT delete token, profile, or any data on sign out during dev
             navigate('/auth');
           }}
           className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/10 rounded-xl font-medium text-sm transition-colors text-left"
